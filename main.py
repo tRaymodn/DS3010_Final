@@ -2,6 +2,8 @@ import pandas as pd
 import math
 import numpy as np
 import json
+from multiprocessing import Pool
+import time
 # This is a sample Python script.
 
 # Press Shift+F10 to execute it or replace it with your code.
@@ -49,12 +51,83 @@ def getattributeinfo(data):
             except json.JSONDecodeError as e:
                 print("Error decoding JSON:", e)
                 print("JSON string:", jsonstring)
+    sorted_map = dict(sorted(attributeMap.items(), key=lambda item: item[1], reverse=True))
+    return sorted_map, missingAttributes
 
-    return attributeMap, missingAttributes
+
+## Input the name of a city or state and returns the businesses from that area
+def getbusinessesfromarea(area):
+    returned_businesses = []
+    with open("./data/yelp_dataset/yelp_academic_dataset_business.json", 'r', encoding='utf-8') as f:
+        for line in f:
+            business = json.loads(line)
+            if business['city'] == area or business['state'] == area:
+                returned_businesses.append(business)
+    print("there are " + str(len(returned_businesses)) + " businesses based in " + area)
+    return returned_businesses
+
+
+def load_reviews_chunk(filename, chunk, business_ids):
+    reviews = {}
+    with open(filename, 'r', encoding='utf-8') as f:
+        for line in chunk:
+            review = json.loads(line)
+            business_id = review['business_id']
+            if business_id in business_ids:
+                if business_id not in reviews:
+                    reviews[business_id] = []
+                reviews[business_id].append(review['text']) # only append the text instead of the entire review
+    return reviews
+
+def check_reviews_for_businesses(review_chunks, business_ids, filename):
+    reviews = {}
+    with Pool() as pool:
+        results = pool.starmap(load_reviews_chunk, [(filename, chunk, business_ids) for chunk in review_chunks])
+    for result in results:
+        for business_id, business_reviews in result.items():
+            if business_id in reviews:
+                reviews[business_id].extend(business_reviews)
+            else:
+                reviews[business_id] = business_reviews
+    return reviews
+
+def collect_reviews_for_businesses_in_chunks(review_filename, business_ids, chunk_size=10000):
+    review_chunks = []
+    with open(review_filename, 'r', encoding='utf-8') as f:
+        chunk = []
+        for line in f:
+            chunk.append(line)
+            if len(chunk) == chunk_size:
+                review_chunks.append(chunk)
+                chunk = []
+        if chunk:
+            review_chunks.append(chunk)
+    return check_reviews_for_businesses(review_chunks, business_ids, review_filename)
+
+def collect_text_from_chunk_area(area):
+    business_data = getbusinessesfromarea(area)
+    business_ids = [business['business_id'] for business in business_data]
+
+    review_filename = "./data/yelp_dataset/yelp_academic_dataset_review.json"
+
+    reviews = collect_reviews_for_businesses_in_chunks(review_filename, business_ids)
+    print("Reviews collected:", str(len(reviews)))
+    # reviews[business_id] = [ 'text', 'text', ...]
+    removed_count = 0
+    for business in business_data[:]:
+        print("business name: " + business['name'])
+        print("Attributes: " + str(business['attributes']))
+        print("Number of reviews " + str(len(reviews[business['business_id']])) + "\n")
+        if business['attributes'] is None:
+            removed_count += 1
+            business_data.remove(business)
+    print("Businesses with no attributes - removed: " + str(removed_count))
+    return business_data, reviews
 
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
+    '''
     print_hi('PyCharm')
     business_data = pd.read_csv("./data/yelp_business.csv")
     print("business data size:" + str(len(business_data)))
@@ -70,6 +143,16 @@ if __name__ == '__main__':
     print("review data size:" + str(len(review_data)))
     print(findEmptyData(review_data))
     # No missing attributes
+    '''
+    my_business = "AZ"
+    getbusinessesfromarea(my_business)
+    #getreviewsfromuser("IpLRJY4CP3fXtlEd8Y4GFQ")
+    #getreviewsfrombusinesses(["tUFrWirKiKi_TAnsVWINQQ", "mWMc6_wTdE0EUBKIGXDVfA", "bBDDEgkFA1Otx9Lfe7BZUQ"])
+    #collect_text_from_area(my_business)
+    start_time = time.time()
+    business_data, reviews = collect_text_from_chunk_area(my_business) # input data, map of labels
+    end_time = time.time()
+    print("Time taken to: " + str(end_time - start_time))
 
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
