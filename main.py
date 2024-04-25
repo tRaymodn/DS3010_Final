@@ -104,20 +104,21 @@ def collect_reviews_for_businesses_in_chunks(review_filename, business_ids, chun
             review_chunks.append(chunk)
     return check_reviews_for_businesses(review_chunks, business_ids, review_filename)
 
-def collect_text_from_chunk_area(area):
+def collect_text_from_chunk_area(area, review_filename):
     business_data = getbusinessesfromarea(area)
     business_ids = [business['business_id'] for business in business_data]
-
-    review_filename = "./data/yelp_dataset/yelp_academic_dataset_review.json"
 
     reviews = collect_reviews_for_businesses_in_chunks(review_filename, business_ids)
     print("Reviews collected:", str(len(reviews)))
     # reviews[business_id] = [ 'text', 'text', ...]
     removed_count = 0
-    for business in business_data[:]:
+    for business in business_data[:]: # loop through a copy becuase we are deleting things from the original list as we are going
         print("business name: " + business['name'])
         print("Attributes: " + str(business['attributes']))
-        print("Number of reviews " + str(len(reviews[business['business_id']])) + "\n")
+        if business['business_id'] in reviews:
+            print("Number of reviews " + str(len(reviews[business['business_id']])) + "\n")
+        else:
+            print("No reviews for this business\n")
         if business['attributes'] is None:
             removed_count += 1
             business_data.remove(business)
@@ -149,10 +150,20 @@ if __name__ == '__main__':
     #getreviewsfromuser("IpLRJY4CP3fXtlEd8Y4GFQ")
     #getreviewsfrombusinesses(["tUFrWirKiKi_TAnsVWINQQ", "mWMc6_wTdE0EUBKIGXDVfA", "bBDDEgkFA1Otx9Lfe7BZUQ"])
     #collect_text_from_area(my_business)
+
     start_time = time.time()
-    business_data, reviews = collect_text_from_chunk_area(my_business) # input data, map of labels
+    # this line works for both the tip and review datasets, all they need to have is a business_id field and a text_id field
+    business_data, reviews = collect_text_from_chunk_area(my_business, "./data/yelp_dataset/yelp_academic_dataset_tip.json") # input data, map of labels
     end_time = time.time()
     print("Time taken to: " + str(end_time - start_time))
+
+    attribute_map = {}
+    for business in business_data:
+        for attribute in business['attributes']:
+            if attribute not in attribute_map:
+                attribute_map[attribute] = 0
+            attribute_map[attribute] += 1
+    print("attribute map: " + json.dumps(dict(sorted(attribute_map.items(), key=lambda item: item[1], reverse=True))))
 
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
