@@ -125,6 +125,129 @@ def collect_text_from_chunk_area(area, review_filename):
     print("Businesses with no attributes - removed: " + str(removed_count))
     return business_data, reviews
 
+#When doing useful stuff, i think we want to have the measure of usefulness be useful/total_reviews, so we can get on average
+# Or, who knows if the numbers on the user.json file are even accurate, i should check that - will do now
+'''
+def collect_users():
+    users = []
+    with open("./data/yelp_dataset/yelp_academic_dataset_user.json", 'r', encoding="utf-8") as f:
+        for line in f:
+            user = json.loads(line)
+            if user["review_count"] > 150: # only append the yelpers who have made more than 150 yelps
+                users.append(user["user_id"])
+    print("Number of users: " + str(len(users)))
+    return users
+
+def get_reviews_from_users(users):
+    user_review_text_map = {}
+    user_review_avg_useful_map = {}
+    with open("./data/yelp_dataset/yelp_academic_dataset_review.json", 'r', encoding="utf-8") as f:
+        for line in f:
+            review = json.loads(line)
+            if review["user_id"] in users:
+                usefulness = review["useful"]
+                if review["user_id"] not in user_review_text_map:
+                    user_review_text_map[review["user_id"]] = []
+                    user_review_avg_useful_map[review["user_id"]] = []
+                user_review_text_map[review["user_id"]].append(review["text"]) # append all text from each user in users to map list
+                user_review_avg_useful_map[review["user_id"]].append(usefulness)
+
+    for key, value in list(user_review_avg_useful_map.items())[:]:
+        weighted_sum = 0
+        for useful in value:
+            weighted_sum += (useful*len(value))
+        user_review_avg_useful_map[key] = weighted_sum/len(value)
+
+    return user_review_text_map, user_review_avg_useful_map
+'''
+
+def collect_users():
+    users = []
+    with open("./data/yelp_dataset/yelp_academic_dataset_user.json", 'r', encoding="utf-8") as f:
+        for line in f:
+            user = json.loads(line)
+            if user["review_count"] > 2000:
+                users.append(user["user_id"])
+    print("Number of users: " + str(len(users)))
+    return users
+
+def load_reviews_chunk(filename, chunk, users):
+    start_time = time.time()
+    user_review_text_map = {}
+    user_review_avg_useful_map = {}
+    with open(filename, 'r', encoding="utf-8") as f:
+        for line in chunk:
+            review = json.loads(line)
+            if review["user_id"] in users:
+                usefulness = review["useful"]
+                if review["user_id"] not in user_review_text_map:
+                    user_review_text_map[review["user_id"]] = []
+                    user_review_avg_useful_map[review["user_id"]] = []
+                user_review_text_map[review["user_id"]].append(review["text"])
+                user_review_avg_useful_map[review["user_id"]].append(usefulness)
+    '''
+    for key, value in list(user_review_avg_useful_map.items())[:]:
+        weighted_sum = 0
+        for useful in value:
+            weighted_sum += useful
+        user_review_avg_useful_map[key] = weighted_sum/len(value)
+    '''
+    end_time = time.time()
+    print("Time taken for chunk: ", end_time - start_time)
+    print("Number reviews seen: " + str(len(user_review_text_map)))
+    return [user_review_text_map, user_review_avg_useful_map]
+
+def get_reviews_from_users(users):
+    review_filename = "./data/yelp_dataset/yelp_academic_dataset_review.json"
+    chunk_size = 15000
+    with open(review_filename, 'r', encoding="utf-8") as f:
+        chunks = []
+        chunk = []
+        start_time = time.time()
+        for line in f:
+            review = json.loads(line)
+            if review["user_id"] in users:
+                chunk.append(line)
+                if len(chunk) == chunk_size:
+                    chunks.append(chunk)
+                    chunk = []
+                    end_time = time.time()
+                    print("Time taken to load chunk: ", end_time - start_time)
+                    print("chunks at last position:" + str(chunks[-1][0]))
+                    start_time = time.time()
+        if chunk:
+            chunks.append(chunk)
+
+    with Pool() as pool:
+        results = pool.starmap(load_reviews_chunk, [(review_filename, c, users) for c in chunks])
+    #print(results)
+    user_review_text_map = {}
+    user_review_avg_useful_map = {}
+    for text_map, avg_useful_map in results:
+        for user_id, text_list in list(text_map.items())[:]:
+            if user_id not in user_review_text_map:
+                user_review_text_map[user_id] = []
+                user_review_avg_useful_map[user_id] = []
+            user_review_text_map[user_id].extend(text_list)
+            if isinstance(user_review_avg_useful_map[user_id], float) or isinstance(user_review_avg_useful_map[user_id], int):
+                user_review_avg_useful_map[user_id] = [user_review_avg_useful_map[user_id]]
+            user_review_avg_useful_map[user_id].append(avg_useful_map[user_id])
+        for user_id, usefuls in list(user_review_avg_useful_map.items())[:]:
+            divlength = 1
+            user_review_avg_useful_map[user_id] = 0 # set value to zero
+            if isinstance(usefuls, float) or isinstance(usefuls, int):
+                continue
+            elif isinstance(usefuls[0], float) or isinstance(usefuls[0], int):
+                usefuls = [[usefuls[0]]]
+            else:
+                divlength = len(usefuls[0])
+            for useful in usefuls[0]: # strange, extra array outside
+                print(str(useful) + "\n")
+                print(user_review_avg_useful_map[user_id])
+                user_review_avg_useful_map[user_id] += useful
+            user_review_avg_useful_map[user_id] = user_review_avg_useful_map[user_id] / divlength
+
+    return user_review_text_map, user_review_avg_useful_map
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
@@ -144,7 +267,9 @@ if __name__ == '__main__':
     print("review data size:" + str(len(review_data)))
     print(findEmptyData(review_data))
     # No missing attributes
-    '''
+    
+    
+    
     my_business = "AZ"
     getbusinessesfromarea(my_business)
     #getreviewsfromuser("IpLRJY4CP3fXtlEd8Y4GFQ")
@@ -164,7 +289,12 @@ if __name__ == '__main__':
                 attribute_map[attribute] = 0
             attribute_map[attribute] += 1
     print("attribute map: " + json.dumps(dict(sorted(attribute_map.items(), key=lambda item: item[1], reverse=True))))
+    '''
 
+    users = collect_users()
+    text_map, useful_map = get_reviews_from_users(users)
+    # print(text_map)
+    print(useful_map)
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
 
