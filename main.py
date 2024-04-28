@@ -127,39 +127,6 @@ def collect_text_from_chunk_area(area, review_filename):
 
 #When doing useful stuff, i think we want to have the measure of usefulness be useful/total_reviews, so we can get on average
 # Or, who knows if the numbers on the user.json file are even accurate, i should check that - will do now
-'''
-def collect_users():
-    users = []
-    with open("./data/yelp_dataset/yelp_academic_dataset_user.json", 'r', encoding="utf-8") as f:
-        for line in f:
-            user = json.loads(line)
-            if user["review_count"] > 150: # only append the yelpers who have made more than 150 yelps
-                users.append(user["user_id"])
-    print("Number of users: " + str(len(users)))
-    return users
-
-def get_reviews_from_users(users):
-    user_review_text_map = {}
-    user_review_avg_useful_map = {}
-    with open("./data/yelp_dataset/yelp_academic_dataset_review.json", 'r', encoding="utf-8") as f:
-        for line in f:
-            review = json.loads(line)
-            if review["user_id"] in users:
-                usefulness = review["useful"]
-                if review["user_id"] not in user_review_text_map:
-                    user_review_text_map[review["user_id"]] = []
-                    user_review_avg_useful_map[review["user_id"]] = []
-                user_review_text_map[review["user_id"]].append(review["text"]) # append all text from each user in users to map list
-                user_review_avg_useful_map[review["user_id"]].append(usefulness)
-
-    for key, value in list(user_review_avg_useful_map.items())[:]:
-        weighted_sum = 0
-        for useful in value:
-            weighted_sum += (useful*len(value))
-        user_review_avg_useful_map[key] = weighted_sum/len(value)
-
-    return user_review_text_map, user_review_avg_useful_map
-'''
 
 def collect_users():
     users = []
@@ -171,7 +138,7 @@ def collect_users():
     print("Number of users: " + str(len(users)))
     return users
 
-def load_reviews_chunk(filename, chunk, users):
+def load_reviews_chunk_2(filename, chunk, users):
     start_time = time.time()
     user_review_text_map = {}
     user_review_avg_useful_map = {}
@@ -219,7 +186,7 @@ def get_reviews_from_users(users):
             chunks.append(chunk)
 
     with Pool() as pool:
-        results = pool.starmap(load_reviews_chunk, [(review_filename, c, users) for c in chunks])
+        results = pool.starmap(load_reviews_chunk_2, [(review_filename, c, users) for c in chunks])
     #print(results)
     user_review_text_map = {}
     user_review_avg_useful_map = {}
@@ -267,7 +234,7 @@ if __name__ == '__main__':
     print("review data size:" + str(len(review_data)))
     print(findEmptyData(review_data))
     # No missing attributes
-    
+    '''
     
     
     my_business = "AZ"
@@ -289,13 +256,13 @@ if __name__ == '__main__':
                 attribute_map[attribute] = 0
             attribute_map[attribute] += 1
     print("attribute map: " + json.dumps(dict(sorted(attribute_map.items(), key=lambda item: item[1], reverse=True))))
+    
     '''
-
     users = collect_users()
     text_map, useful_map = get_reviews_from_users(users)
     # print(text_map)
     print(useful_map)
-
+    '''
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
 
 # what needs to be done
