@@ -152,13 +152,11 @@ def load_reviews_chunk_2(filename, chunk, users):
                     user_review_avg_useful_map[review["user_id"]] = []
                 user_review_text_map[review["user_id"]].append(review["text"])
                 user_review_avg_useful_map[review["user_id"]].append(usefulness)
-    '''
     for key, value in list(user_review_avg_useful_map.items())[:]:
         weighted_sum = 0
         for useful in value:
             weighted_sum += useful
         user_review_avg_useful_map[key] = weighted_sum/len(value)
-    '''
     end_time = time.time()
     print("Time taken for chunk: ", end_time - start_time)
     print("Number reviews seen: " + str(len(user_review_text_map)))
@@ -235,8 +233,8 @@ if __name__ == '__main__':
     print(findEmptyData(review_data))
     # No missing attributes
     '''
-    
-    
+
+    '''
     my_business = "AZ"
     getbusinessesfromarea(my_business)
     #getreviewsfromuser("IpLRJY4CP3fXtlEd8Y4GFQ")
@@ -262,7 +260,7 @@ if __name__ == '__main__':
     text_map, useful_map = get_reviews_from_users(users)
     # print(text_map)
     print(useful_map)
-    '''
+
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
 
 # what needs to be done
